@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FastPay - Transferencias Bancarias</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <main class="container">
+        <header>
+            <div class="logo">FastPay</div>
+            <p class="subtitle">Banca digital rápida y segura</p>
+        </header>
+
+        <!-- Pantalla 1: Acceso con Tarjeta y NIP -->
+        <section id="login-view" class="view active">
+            <h2>Ingresa a tu cuenta</h2>
+            <form id="login-form">
+                <div class="input-group">
+                    <label for="card-number">Número de Tarjeta (16 dígitos)</label>
+                    <input type="text" id="card-number" maxlength="19" placeholder="4152 3138 9012 4567" required>
+                </div>
+                <div class="input-group">
+                    <label for="card-nip">NIP (4 dígitos)</label>
+                    <input type="password" id="card-nip" maxlength="4" placeholder="••••" required>
+                </div>
+                <p class="hint">Demo: usa cualquier tarjeta de 16 dígitos y cualquier NIP de 4 números.</p>
+                <p id="login-error" class="error-msg"></p>
+                <button type="submit" class="btn-primary">Continuar</button>
+            </form>
+        </section>
+
+        <!-- Pantalla 2: Panel de Transferencia -->
+        <section id="transfer-view" class="view">
+            <div class="balance-card">
+                <span class="balance-label">Saldo Disponible (<span id="masked-card">•••• 4567</span>)</span>
+                <h2 id="balance-amount">$15,450.00 MXN</h2>
+            </div>
+
+            <form id="transfer-form">
+                <h3>Nueva Transferencia</h3>
+                <div class="input-group">
+                    <label for="recipient-name">Nombre del Destinatario</label>
+                    <input type="text" id="recipient-name" placeholder="Ej. Ana Sofía Morales" required>
+                </div>
+                <div class="input-group">
+                    <label for="recipient-account">Tarjeta o CLABE Destino</label>
+                    <input type="text" id="recipient-account" maxlength="18" placeholder="16 o 18 dígitos" required>
+                </div>
+                <div class="input-group">
+                    <label for="transfer-amount">Monto a transferir ($ MXN)</label>
+                    <input type="number" id="transfer-amount" min="1" step="0.01" placeholder="0.00" required>
+                </div>
+                <div class="input-group">
+                    <label for="transfer-concept">Concepto</label>
+                    <input type="text" id="transfer-concept" placeholder="Ej. Pago cena, renta..." required>
+                </div>
+                <p id="transfer-error" class="error-msg"></p>
+                <button type="submit" class="btn-primary">Transferir Ahora</button>
+                <button type="button" id="logout-btn" class="btn-secondary">Cerrar Sesión</button>
+            </form>
+
+            <div class="history-section">
+                <h4>Últimos Movimientos</h4>
+                <ul id="history-list">
+                    <li class="empty-history">Aún no hay transferencias realizadas.</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- Pantalla 3: Comprobante Exitoso -->
+        <section id="receipt-view" class="view">
+            <div class="success-icon">✓</div>
+            <h2>¡Transferencia Exitosa!</h2>
+            <p class="receipt-subtitle">Tu envío se procesó al instante</p>
+            <div class="receipt-details" id="receipt-details"></div>
+            <button type="button" id="new-transfer-btn" class="btn-primary">Hacer otra transferencia</button>
+        </section>
+    </main>
+    <script src="app.js"></script>
+</body>
+</html>
