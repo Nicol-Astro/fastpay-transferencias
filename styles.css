@@ -218,3 +218,62 @@ input:focus {
     margin-bottom: 1.25rem;
     line-height: 1.7;
 }
+
+/* Mejoras visuales para los campos */
+input {
+    transition: all 0.2s ease;
+}
+
+input:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+/* Mejorar la interacción de los botones */
+.btn-primary,
+.btn-secondary {
+    transition: all 0.2s ease;
+}
+
+.btn-primary:hover,
+.btn-secondary:hover {
+    transform: translateY(-1px);
+}
+
+.btn-primary:active,
+.btn-secondary:active {
+    transform: scale(0.98);
+}
+
+/* Mejorar la interacción de los botones */
+.btn-primary,
+.btn-secondary {
+    transition: all 0.2s ease;
+}
+
+.btn-primary:hover,
+.btn-secondary:hover {
+    transform: translateY(-1px);
+}
+
+.btn-primary:active,
+.btn-secondary:active {
+    transform: scale(0.98);
+}
+/* Ajustes del contenedor */
+.container {
+    padding: 1.5rem;
+}
+
+/* Adaptación para pantallas pequeñas */
+@media (max-width: 480px) {
+    body {
+        padding: 0.75rem;
+    }
+
+    .container {
+        padding: 1.25rem;
+        border-radius: 12px;
+    }
+}
